@@ -1,7 +1,6 @@
 import std;
 
 #define ALLc(x) (x).cbegin(),(x).cend()
-
 using u64 = unsigned long long;
 
 int main(int argc, char* argv[])
@@ -13,18 +12,17 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	u64 part1 = 0, part2 = 0;
-
 	std::ifstream in(argv[1]);
-	std::string line;
 	if (!in)
 	{
 		std::cout << std::format("Could not open file {}.\nAborting!\n", argv[1]);
 		return -1;
 	}
 
+	u64 part1 = 0, part2 = 0;
 	std::vector<std::vector<u64>> values;
 	std::vector<std::string > cephMath;
+	std::string line;
 	while (std::getline(in, line))
 	{
 		int i = 0;
@@ -60,38 +58,22 @@ int main(int argc, char* argv[])
 		cephMath.emplace_back(std::move(line));
 	}
 
-	int start = 0, end = 1, MAX = cephMath.front().size();
-	while (start < MAX)
+	std::vector<u64> vals;
+	for (int i = cephMath.front().size()-1; i >= 0; --i)
 	{
-		bool separator = false;
-		while (end < MAX)
+		u64 val = 0;
+		for (size_t j = 0; j < cephMath.size() - 1; ++j)
+			if (char c = cephMath[j][i]; c != ' ')
+				val = val * 10 + c - '0';
+		if (char c = cephMath.back()[i]; c == ' ')
 		{
-			separator = true;
-			for (const auto& cLine : cephMath)
-				if (cLine[end] != ' ')
-				{
-					separator = false;
-					++end;
-					break;
-				}
-			if (separator) break;
+			if (val > 0)
+				vals.push_back(val);
+			else
+				vals.clear();
 		}
-		--end;
-
-		std::vector<u64> vals;
-
-		for (int i = end; i >= start; --i)
-		{
-			u64 v = 0;
-			for (int x = 0; x < cephMath.size() - 1; ++x)
-				if (cephMath[x][i] != ' ')
-					v = v * 10 + (cephMath[x][i] - '0');
-			vals.push_back(v);
-		}
-		part2 += cephMath.back()[start] == '+' ? std::accumulate(ALLc(vals), 0ull) : std::accumulate(ALLc(vals), 1ull, std::multiplies());
-		
-		start = end + 2;
-		end = start + 1;
+		else 
+			part2 += (c == '+') ? std::accumulate(ALLc(vals), val) : std::accumulate(ALLc(vals), val, std::multiplies());
 	}
 
 	std::cout << std::format("Part 1: {}\nPart 2: {}\n", part1, part2);
