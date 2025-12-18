@@ -1,13 +1,5 @@
 import std;
 
-[[nodiscard]] std::pair<std::string, std::string> SplitAtFirst(std::string s, std::string token)
-{
-	auto pos = s.find(token);
-	if (pos == std::string::npos)
-		return std::make_pair(std::move(s), std::string{});
-	return std::make_pair(s.substr(0, pos), s.substr(pos + token.size()));
-}
-
 [[nodiscard]] std::vector<int> SplitAt(std::string s, char token)
 {
 	std::vector<int> results;
@@ -60,11 +52,7 @@ int main(int argc, char* argv[])
 
 	while (in >> line)
 	{
-		int target = 0;
 		std::string pattern = line.substr(1, line.size() - 2);
-		for (int i = 0, x = 1; i < pattern.size(); ++i, x <<= 1)
-			if (pattern[i] == '#')
-				target += x;
 		std::vector<int> flippers;
 		while (in >> line)
 		{
@@ -76,38 +64,36 @@ int main(int argc, char* argv[])
 			flippers.push_back(flip);
 		}
 
-		std::set<int> cur = { 0 }, next, all = cur;
-		int count = 0;
-		while (!cur.contains(target))
-		{
-			++count;
-			for (int i : cur)
-				for (int t : flippers)
-					if (int v = i ^ t; all.insert(v).second)
-						next.insert(v);
-
-			std::swap(cur, next);
-			next.clear();
-		}
-		part1 += count;
-
-		std::map<int, std::vector<std::vector<unsigned char>>> patterns = { {0,{{}}} };
+		std::map<int, std::vector<std::vector<int>>> deltas = { {0,{std::vector(pattern.size()+1, 0)}} };
 		for (int i = 1, maxI = 1 << flippers.size(); i < maxI; ++i)
 		{
 			int index = 0, test = i, val = 0;
 			std::vector<unsigned char> p;
+			std::vector delta(pattern.size()+1, 0);
+			delta.back() = std::popcount((unsigned int)test);
 			while (test > 0)
 			{
 				if (test & 0x01)
 				{
-					val ^= flippers[index];
-					p.push_back(index);
+					int flip = flippers[index], fi = 0;
+					val ^= flip;
+					while (flip)
+					{
+						if (flip & 0x01)
+							--delta[fi];
+						++fi;
+						flip >>= 1;
+					}
 				}
 				test >>= 1;
 				++index;
 			}
-			patterns[val].emplace_back(std::move(p));
+			deltas[val].emplace_back(std::move(delta));
 		}
+		int target = std::accumulate(pattern.crbegin(), pattern.crend(), 0, [](int t, char c) { return t * 2 + (c == '#'); });
+		const std::vector<std::vector<int>>& tp = deltas[target];
+		part1 += std::accumulate(std::next(tp.cbegin()), tp.cend(), tp.front().back(), [](int m, const std::vector<int>& v) {return std::min(m, v.back()); });
+
 		std::vector<int> joltages = SplitAt(line.substr(1, line.size() - 1), ',');
 		std::map<std::vector<int>, int> memo = { {std::vector<int>(pattern.size(), 0), 0} };
 
@@ -115,39 +101,24 @@ int main(int argc, char* argv[])
 			{
 				if (auto iter = memo.find(toMatch); iter != memo.cend())
 					return iter->second;
-				int bestResult = 1'000'000;
-				if (auto iter = std::find_if(toMatch.cbegin(), toMatch.cend(), [](int x) {return x < 0; }); iter != toMatch.cend())
+				int bestResult = 1'000'000, oddPattern = 0;
+				if (std::find_if(toMatch.cbegin(), toMatch.cend(), [](int x) { return x < 0; }) != toMatch.cend())
 				{
 					memo[toMatch] = bestResult;
 					return bestResult;
 				}
-				int oddPattern = 0;
-				for (int i = 0; i < toMatch.size(); ++i)
-					if (toMatch[i] & 0x01)
-						oddPattern |= (1 << i);
-
-				for (const std::vector<unsigned char>& p : patterns[oddPattern])
+				oddPattern = std::accumulate(toMatch.crbegin(), toMatch.crend(), 0, [](int t, int c) {return t * 2 | (c & 0x00000001); });
+				for (const std::vector<int>& d : deltas[oddPattern])
 				{
-					std::vector copy = toMatch;
-					for (unsigned char c : p)
-					{
-						int t = flippers[c], index = 0;
-						while (t > 0)
-						{
-							if (t & 0x01) --copy[index];
-							t >>= 1;
-							++index;
-						}
-					}
-					for (int& x : copy)
-						x >>= 1;
-						
-					bestResult = std::min(2 * Solve(std::move(copy)) + (int)p.size(), bestResult);
+					std::vector<int> copy;
+					copy.reserve(toMatch.size());
+					std::transform(toMatch.cbegin(), toMatch.cend(), d.cbegin(), std::back_inserter(copy), [](int c, int d) { return (c + d) / 2; });
+					bestResult = std::min(2 * Solve(std::move(copy)) + d.back(), bestResult);
 				}
 				memo[toMatch] = bestResult;
 				return bestResult;
 			});
-		
+
 		part2 += Solve(joltages);
 	}
 
