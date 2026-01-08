@@ -24,27 +24,20 @@ int main(int argc, char* argv[])
 	std::unordered_map<int, u64> paths, next;
 
 	in >> line;
-	int pos = line.find('S');
-
-	paths[pos] = 1;
-
-	auto Insert = [&next](int p, u64 val) ->void
-		{
-			if (auto iter = next.find(p); iter != next.end())
-				iter->second += val;
-			else next[p] = val;
-		};
+	paths[(int)line.find('S')] = 1;
 	while (in >> line)
 	{
+		if (line.find('^') == std::string::npos)
+			continue;
 		for (auto [p, v] : paths)
 		{
 			if (line[p] == '^')
 			{
-				Insert(p - 1, v);
-				Insert(p + 1, v);
+				next[p - 1] += v;
+				next[p + 1] += v;
 				++part1;
 			}
-			else Insert(p, v);
+			else next[p] += v;
 		}
 
 		std::swap(paths, next);
